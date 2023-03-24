@@ -1,9 +1,11 @@
 section .text
 
+%include "util.s"
+
 global _start                  ; predefined entry point name for ld
 
 _start:
-    mov rsi, Msg
+    mov rsi, 'a'
     push rsi
     call printf
 
@@ -12,26 +14,18 @@ _start:
     syscall
 
 printf:
-    mov rax, 0x01; RAX = write64
-    mov rdi, 1 ; RDI = stdout
-    mov rsi, [rsp - 4] ; RSI = message start
-    mov rdx, 1 ; Printed part size is 1 (printing char-by-char)
-    
-    syscall
-
-    ; WriteLoopBgn:
-    ;     mov rbx, [rsi] ; RBX = current character
-    ;     cmp rbx, 0 ; If current caracter is the terminator, return
-    ;     je WriteLoopEnd
-
-    ;     syscall ; Print the symbol
-
-    ;     inc rsi ; Move to the next symbol
-    ; WriteLoopEnd:
-
+    mov rdx, [rsp + 8]
+    mov rdi, PrintBuffer
+    out_char
+    flush_pb
     ret
 
 section     .data
-            
+
 Msg:        db "Hello, world! I work for you now!\n", 0x00
 MsgLen      equ $ - Msg
+
+section .bss
+
+PrintBuffer: resb 1024
+PrintBufferEnd:
