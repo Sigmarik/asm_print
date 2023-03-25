@@ -5,13 +5,10 @@ BLD_FILE = $(BLD_FOLDER)/build.exe
 all: main
 
 test:
-	make rm
-	make
-	make clean
-	make run
-
-debug: $(BLD_FILE)
-	gdb $(BLD_FILE)
+	@make rm
+	@make
+	@make clean
+	@make run
 
 MAIN_OBJECTS = scuffedio.o
 main: $(MAIN_OBJECTS)
@@ -29,3 +26,6 @@ rm: clean
 
 %.o: %.s
 	nasm -f elf64 -l $(LST_NAME) $^
+
+debug: $(BLD_FILE)
+	radare2 -d $(BLD_FILE)
