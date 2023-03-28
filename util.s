@@ -177,6 +177,8 @@
 ; DESTR: RAX RBX RCX RDX
 ;--------------------------------------------------
 %macro print_hex 0
+    push rsi
+
     mov rcx, 8 * 8 - 4
     mov rdx, 0x0F
     shl rdx, cl
@@ -199,6 +201,8 @@
         jmp %%ZeroDeletionBgn
     %%ZeroDeletionEnd:
 
+    lea rsi, [DigitTable]
+
     %%LoopBgn:
         cmp cl, -4
         je %%LoopEnd
@@ -207,13 +211,15 @@
         and rbx, rdx
         shr rbx, cl; RBX = digit at the position
 
-        mov rbx, [DigitTable + rbx]
+        mov rbx, [rsi + rbx]
         out_char bl; Print character corresponding to the given digit
 
         shr rdx, 4
         sub rcx, 4
         jmp %%LoopBgn
     %%LoopEnd:
+
+    pop rsi
 %endmacro
 ;--------------------------------------------------/
 
@@ -225,6 +231,8 @@
 ; DESTR: RAX RBX RCX RDX
 ;--------------------------------------------------
 %macro print_decimal 0
+    push rsi
+
     cmp rax, 0; If number is zero, print single '0' character and exit
     jne %%SkipZero
         add al, '0'
@@ -232,7 +240,16 @@
         jmp %%RetraceLoopEnd
     %%SkipZero:
 
+    cmp rax, 0
+    jg %%SkipSignInversion
+        neg rax
+        mov dl, '-'
+        out_char dl
+    %%SkipSignInversion:
+
     mov cl, 10; We will be dividing by 10 constantly...
+
+    lea rsi, [DigitBuffer]
 
     xor rbx, rbx
     %%ReadLoopBgn:
@@ -246,7 +263,7 @@
 
         sub rdx, rax; RDX = (original) RAX % 10
         add rdx, '0'
-        mov [DigitBuffer + rbx], dl; Put digit to middle-stage buffer (they will need to be inverted later)
+        mov [rsi + rbx], dl; Put digit to middle-stage buffer (they will need to be inverted later)
 
         div cl; Prepare RAX for the next loop pass by dividing it by 10
         inc rbx; Shift digit buffer cell
@@ -257,7 +274,7 @@
     %%RetraceLoopBgn:
         dec rbx
         
-        mov dl, [DigitBuffer + rbx]
+        mov dl, [rsi + rbx]
         out_char dl; Copy digit from digit buffer to print buffer
 
         cmp rbx, 0
@@ -265,5 +282,7 @@
 
         jmp %%RetraceLoopBgn
     %%RetraceLoopEnd:
+
+    pop rsi
 %endmacro
 ;--------------------------------------------------/

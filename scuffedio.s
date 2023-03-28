@@ -1,39 +1,47 @@
+default rel
 section .text
 
 %include "util.s"
 
-global _start                  ; predefined entry point name for ld
+global _start
 
 _start:
     mov rdi, PrintBuffer
-    mov rsi, Msg
+
+    push 127
+    push 33
+    push 100
+    push 3802
+    push LoveWord
+    push -1;      db "%d %s %x %d%%%c%b", 0x0A, 0x00
+
     push 123
     push 123
     push 123
     push 123
     push SecondaryMsg
-    push rsi
-    call printf
+    push Msg
 
-    mov rax, 0x3C      ; exit64 (rdi)
+    call print
+
+    mov rax, 0x3C; exit64 (rdi)
     xor rdi, rdi
     syscall
 
 ;--------------------------------------------------\
-; Print the string (stack top) to the console.
+; Mimic std printf
 ;--------------------------------------------------
-; IN:    [filled stack]
+; IN:    [cdecl-filled stack]
 ;        RDI = current buffer end ptr
 ; OUT:   message on the screen
 ; DESTR: RDX RAX
 ;--------------------------------------------------
-printf:
+print:
     push rbp
     mov rbp, rsp
 
     add rbp, 16; RBP = first argument ptr
     read_argument rsi; RSI = format ptr
-    ; mov rsi, [rsp]
 
     ReadLoopBgn:
         mov dl, [rsi]
@@ -49,7 +57,8 @@ printf:
             cmp dl, 0; If it is zero, stop reading.
             je ReadLoopEnd
 
-            mov ecx, [PrintJmpTable + rdx * 4]
+            lea rcx, [PrintJmpTable]
+            mov ecx, [rcx + rdx * 4]
             jmp rcx; Switch by dl character
 
             PrintBinary:
@@ -106,24 +115,26 @@ PrintJmpTable:
     times '%' dd ReadLoopContinue
     dd SkipSpecialCharacter; '%'
     times 'b' - '%' - 1 dd ReadLoopContinue
-    dd PrintBinary; 'b'
-    dd PrintChar; 'c'
+    dd PrintBinary;  'b'
+    dd PrintChar;    'c'
     dd PrintDecimal; 'd'
     times 'o' - 'd' - 1 dd ReadLoopContinue
-    dd PrintOctal; 'o'
+    dd PrintOctal;   'o'
     times 's' - 'o' - 1 dd ReadLoopContinue
-    dd PrintString; 's'
+    dd PrintString;  's'
     times 'x' - 's' - 1 dd ReadLoopContinue
-    dd PrintHex; 'x'
+    dd PrintHex;     'x'
     times 256 dd ReadLoopContinue; <- Safety pad
 
-Msg: db "Hello, world %s! I work 100%% for you now!", 0x0A
-     db "The number 123 is %b in binary.", 0x0A
-     db "The number 123 is also %o in octo.", 0x0A
-     db "And who would have thought that number 123 is also %x in hexadecimal!", 0x0A
-     db "In decimal 123 is... well... %d. What a surprize.", 0x0A, 0x00
+Msg: db "-Hello, world %s! I work 100%% for you now!", 0x0A
+     db "-The number 123 is %b in binary.", 0x0A
+     db "-The number 123 is also %o in octo.", 0x0A
+     db "-And who would have thought that number 123 is also %x in hexadecimal!", 0x0A
+     db "-In decimal 123 is... well... %d. What a surprize.", 0x0A
+     db "%d %s %x %d%%%c%b", 0x0A, 0x00
 
 SecondaryMsg: db "[unnamed_world_1]", 0x00
+LoveWord: db "love", 0x00
 
 section .bss
 
