@@ -26,7 +26,7 @@
 ; OUT:   RDI = RDI + 1
 ; DESTR: [register 1], RDI
 ;--------------------------------------------------
-%macro out_char 1
+%macro print_char 1
     mov [rdi], %1
     inc rdi
     cmp %1, 0x0A; '\n' character
@@ -65,7 +65,7 @@
         cmp dl, 0
         je %%StrPrintLoopEnd
 
-        out_char dl
+        print_char dl
         inc %1
 
         jmp %%StrPrintLoopBgn
@@ -81,14 +81,14 @@
 ; DESTR: RAX RBX RCX RDX
 ;--------------------------------------------------
 %macro print_binary 0
-    mov rcx, 8 * 8 - 1
+    mov rcx, 8 * 8 - 1; <-- [register size] - 1
     mov rdx, 1
     shl rdx, cl
     %%ZeroDeletionBgn:
         cmp cl, -1; If we have reached the end, stop.
         jne %%ContinueZeroAnalisis
             add cl, '0'
-            out_char cl; If the number is equal to zero, print it ('0' char)
+            print_char cl; If the number is equal to zero, print it ('0' char)
             jmp %%LoopEnd
         %%ContinueZeroAnalisis:
         
@@ -112,7 +112,7 @@
         shr rbx, cl; RBX = bit at the position
 
         add rbx, '0'
-        out_char bl; Print character corresponding to the given bit
+        print_char bl; Print character corresponding to the given bit
 
         shr rdx, 1
         dec rcx
@@ -136,7 +136,7 @@
         cmp cl, -3; If we have reached the end, stop.
         jne %%ContinueZeroAnalisis
             add cl, '0'
-            out_char cl; If the number is equal to zero, print it ('0' char)
+            print_char cl; If the number is equal to zero, print it ('0' char)
             jmp %%LoopEnd
         %%ContinueZeroAnalisis:
         
@@ -160,7 +160,7 @@
         shr rbx, cl; RBX = digit at the position
 
         add rbx, '0'
-        out_char bl; Print character corresponding to the given digit
+        print_char bl; Print character corresponding to the given digit
 
         shr rdx, 3
         sub rcx, 3
@@ -186,7 +186,7 @@
         cmp cl, -4; If we have reached the end, stop.
         jne %%ContinueZeroAnalisis
             add cl, '0'
-            out_char cl; If the number is equal to zero, print it ('0' char)
+            print_char cl; If the number is equal to zero, print it ('0' char)
             jmp %%LoopEnd
         %%ContinueZeroAnalisis:
         
@@ -212,7 +212,7 @@
         shr rbx, cl; RBX = digit at the position
 
         mov rbx, [rsi + rbx]
-        out_char bl; Print character corresponding to the given digit
+        print_char bl; Print character corresponding to the given digit
 
         shr rdx, 4
         sub rcx, 4
@@ -236,7 +236,7 @@
     cmp rax, 0; If number is zero, print single '0' character and exit
     jne %%SkipZero
         add al, '0'
-        out_char al
+        print_char al
         jmp %%RetraceLoopEnd
     %%SkipZero:
 
@@ -244,7 +244,7 @@
     jg %%SkipSignInversion
         neg rax
         mov dl, '-'
-        out_char dl
+        print_char dl
     %%SkipSignInversion:
 
     mov cl, 10; We will be dividing by 10 constantly...
@@ -275,7 +275,7 @@
         dec rbx
         
         mov dl, [rsi + rbx]
-        out_char dl; Copy digit from digit buffer to print buffer
+        print_char dl; Copy digit from digit buffer to print buffer
 
         cmp rbx, 0
         je %%RetraceLoopEnd

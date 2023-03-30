@@ -1,7 +1,7 @@
 default rel
 section .text
 
-%include "util.s"
+%include "print_macros.s"
 
 global _start
 
@@ -40,7 +40,8 @@ print:
     push rbp
     mov rbp, rsp
 
-    add rbp, 16; RBP = first argument ptr
+    ;            v~~ push ret_addr, push rbp
+    add rbp, 8 * 2; RBP = first argument ptr
     read_argument rsi; RSI = format ptr
 
     ReadLoopBgn:
@@ -48,7 +49,7 @@ print:
         cmp dl, 0
         je ReadLoopEnd
 
-        cmp dl, '%'; If character is '%', process it as the special character
+        cmp dl, '%'; If character is '%', process it as a special character
         jne SkipSpecialCharacter
             xor rdx, rdx
             inc rsi
@@ -78,7 +79,7 @@ print:
 
             PrintChar:
                 read_argument rax
-                out_char al
+                print_char al
             jmp ReadLoopContinue
 
             PrintHex:
@@ -94,7 +95,7 @@ print:
             
         SkipSpecialCharacter:
 
-        out_char dl
+        print_char dl
 
         ReadLoopContinue:
         inc rsi
@@ -124,7 +125,7 @@ PrintJmpTable:
     dd PrintString;  's'
     times 'x' - 's' - 1 dd ReadLoopContinue
     dd PrintHex;     'x'
-    times 256 dd ReadLoopContinue; <- Safety pad
+    times 256 - 'x' dd ReadLoopContinue; <- Safety pad
 
 Msg: db "-Hello, world %s! I work 100%% for you now!", 0x0A
      db "-The number 123 is %b in binary.", 0x0A
