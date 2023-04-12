@@ -6,15 +6,15 @@
 ; DESTR: RAX, RDI, RSI, RDX
 ;--------------------------------------------------
 %macro flush_pb 0
+    lea rsi, [PrintBuffer]
     mov rdx, rdi
-    sub rdx, PrintBuffer; rdx = length of the message
+    sub rdx, rsi; rsi = PrintBuffer location, rdx = length of the message
 
     mov rax, 1; RAX = write64()
     mov rdi, 1; RDI = stdout
-    mov rsi, PrintBuffer
     syscall
 
-    mov rdi, PrintBuffer
+    lea rdi, [PrintBuffer]
 %endmacro
 ;--------------------------------------------------/
 
@@ -24,14 +24,16 @@
 ; IN:    [register 1] = character to push
 ;        RDI = buffer end ptr
 ; OUT:   RDI = RDI + 1
-; DESTR: [register 1], RDI
+; DESTR: [register 1], RAX, RDI, RSI, RDX
 ;--------------------------------------------------
 %macro print_char 1
     mov [rdi], %1
     inc rdi
     cmp %1, 0x0A; '\n' character
     jne %%SkipFlush
-    cmp rdi, PrintBufferEnd
+
+    lea rdx, [PrintBufferEnd]
+    cmp rdi, rdx
     jne %%SkipFlush
         flush_pb
     %%SkipFlush:

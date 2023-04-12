@@ -1,32 +1,12 @@
 default rel
+
+global print:function
+
+extern printf
+
 section .text
 
 %include "print_macros.s"
-
-global _start
-
-_start:
-    mov rdi, PrintBuffer
-
-    push 127
-    push 33
-    push 100
-    push 3802
-    push LoveWord
-    push -1;      db "%d %s %x %d%%%c%b", 0x0A, 0x00
-
-    push 123
-    push 123
-    push 123
-    push 123
-    push SecondaryMsg
-    push Msg
-
-    call print
-
-    mov rax, 0x3C; exit64 (rdi)
-    xor rdi, rdi
-    syscall
 
 ;--------------------------------------------------\
 ; Mimic std printf
@@ -34,75 +14,89 @@ _start:
 ; IN:    [cdecl-filled stack]
 ;        RDI = current buffer end ptr
 ; OUT:   message on the screen
-; DESTR: RDX RAX
+; DESTR: RSI RDI RDX RAX RBX RCX
 ;--------------------------------------------------
 print:
     push rbp
     mov rbp, rsp
 
+    xor rax, rax
+
+    mov rdi, start_msg
+    call printf wrt ..plt
+
     ;            v~~ push ret_addr, push rbp
     add rbp, 8 * 2; RBP = first argument ptr
     read_argument rsi; RSI = format ptr
 
-    ReadLoopBgn:
+    lea rdi, [PrintBuffer]
+
+    .ReadLoopBgn:
         mov dl, [rsi]
         cmp dl, 0
-        je ReadLoopEnd
+        je .ReadLoopEnd
 
         cmp dl, '%'; If character is '%', process it as a special character
-        jne SkipSpecialCharacter
+        jne .SkipSpecialCharacter
             xor rdx, rdx
             inc rsi
             mov dl, [rsi]; dl = next character after the '%'
 
             cmp dl, 0; If it is zero, stop reading.
-            je ReadLoopEnd
+            je .ReadLoopEnd
 
             lea rcx, [PrintJmpTable]
-            mov ecx, [rcx + rdx * 4]
-            jmp rcx; Switch by dl character
+            jmp [rcx + rdx * 8]; Switch by dl character
 
-            PrintBinary:
+            .PrintBinary:
                 read_argument rax
                 print_binary
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
-            PrintOctal:
+            .PrintOctal:
                 read_argument rax
                 print_octo
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
-            PrintDecimal:
+            .PrintDecimal:
                 read_argument rax
                 print_decimal
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
-            PrintChar:
+            .PrintChar:
                 read_argument rax
                 print_char al
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
-            PrintHex:
+            .PrintHex:
                 read_argument rax
                 print_hex
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
-            PrintString:
+            .PrintString:
                 read_argument rax
                 print_string rax; CAUTION: Destroys DL!
-            jmp ReadLoopContinue
+            jmp .ReadLoopContinue
 
             
-        SkipSpecialCharacter:
+        .SkipSpecialCharacter:
 
         print_char dl
 
-        ReadLoopContinue:
+        .ReadLoopContinue:
         inc rsi
-        jmp ReadLoopBgn
-    ReadLoopEnd:
+        jmp .ReadLoopBgn
+    .ReadLoopEnd:
 
     flush_pb
+
+    push rax
+    pop rax; Align the stack
+
+    xor rax, rax
+
+    mov rdi, end_msg
+    call printf wrt ..plt
 
     pop rbp
     ret
@@ -112,30 +106,24 @@ section     .data
 DigitTable: db "0123456789ABCDEF"
 DigitBuffer: times 64 db '0'
 
+section .rodata
 PrintJmpTable:
-    times '%' dd ReadLoopContinue
-    dd SkipSpecialCharacter; '%'
-    times 'b' - '%' - 1 dd ReadLoopContinue
-    dd PrintBinary;  'b'
-    dd PrintChar;    'c'
-    dd PrintDecimal; 'd'
-    times 'o' - 'd' - 1 dd ReadLoopContinue
-    dd PrintOctal;   'o'
-    times 's' - 'o' - 1 dd ReadLoopContinue
-    dd PrintString;  's'
-    times 'x' - 's' - 1 dd ReadLoopContinue
-    dd PrintHex;     'x'
-    times 256 - 'x' dd ReadLoopContinue; <- Safety pad
+    times '%' dq print.ReadLoopContinue
+    dq print.SkipSpecialCharacter; '%'
+    times 'b' - '%' - 1 dq print.ReadLoopContinue
+    dq print.PrintBinary;  'b'
+    dq print.PrintChar;    'c'
+    dq print.PrintDecimal; 'd'
+    times 'o' - 'd' - 1 dq print.ReadLoopContinue
+    dq print.PrintOctal;   'o'
+    times 's' - 'o' - 1 dq print.ReadLoopContinue
+    dq print.PrintString;  's'
+    times 'x' - 's' - 1 dq print.ReadLoopContinue
+    dq print.PrintHex;     'x'
+    times 256 - 'x' - 1 dq print.ReadLoopContinue; <- Safety pad
 
-Msg: db "-Hello, world %s! I work 100%% for you now!", 0x0A
-     db "-The number 123 is %b in binary.", 0x0A
-     db "-The number 123 is also %o in octo.", 0x0A
-     db "-And who would have thought that number 123 is also %x in hexadecimal!", 0x0A
-     db "-In decimal 123 is... well... %d. What a surprize.", 0x0A
-     db "%d %s %x %d%%%c%b", 0x0A, 0x00
-
-SecondaryMsg: db "[unnamed_world_1]", 0x00
-LoveWord: db "love", 0x00
+start_msg db "Here is a random quote: ", 0xA, 0
+end_msg db 0x9, 0x9, 0x9, "- Sun Tzu, ", 0x22, "The art of war", 0x22, 0xA, 0
 
 section .bss
 
